@@ -19,7 +19,7 @@ AUCf <- function (x){
   #4 fold cross validation
   #predict after
   library(caret)
-  nooOFolds <- as.numeric(10)
+  nooOFolds <- as.numeric(4)
   #creationofFolds
   flds <- createFolds(c(1: ncol(dd)), k=nooOFolds, list=TRUE, returnTrain=FALSE)
   

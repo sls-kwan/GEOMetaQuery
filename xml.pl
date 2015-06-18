@@ -12,7 +12,7 @@ while (my $line = <FILE>){
     
 }
 
-my $file = "test.xml";
+my $file = "MetaMapOut.xml";
 
 open (FILE, "<$file");
 my @final; 

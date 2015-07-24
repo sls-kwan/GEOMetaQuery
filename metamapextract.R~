@@ -8,7 +8,7 @@ library(gdata)
 library(RCytoscape)
 #####
 setwd("~/COMP4930")
-filenames = c("trainingoutput.csv")
+filenames = c("CHDseries_w_class.csv")
 #####
 egfiles <- paste(getwd(), filenames[1], sep="/") ##Input has GSE
 featfile <- paste(getwd(), "SemanticTypes_2013AA.txt", sep="/") ##Input has GSE

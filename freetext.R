@@ -7,41 +7,21 @@ library(gtools)
 library(gdata)
 #####
 filenames = c("trainingoutput.csv",
-              "allv3e11.txt")
+              "features.txt")
 #####
 egfiles <- paste(getwd(), filenames[1], sep="/") ##Input has GSE
 featfile <- paste(getwd(), filenames[2], sep="/") ##Input has GSE
 if(!file.exists('GEOmetadb.sqlite')) getSQLiteFile()
 metadata <- dbConnect(SQLite(),'GEOmetadb.sqlite')
-trainingset <- read.table(egfiles, sep=",", quote="\"")
+
+trainingset <- read.csv(egfiles, header=FALSE)
+save(trainingset, file="trainingset.RData")
 featset <- read.table(featfile, sep= ",", quote="\"")
 output <- list()
 gse <- as.vector.factor(trainingset$V1)
-
+gselist <- as.list(gse)
+#gsmplatforms <- lapply(GSMList(gselist),function(x) {Meta(x)$platform})
 trainingset$row.names <- NULL
-GSESQLQuery <- c("select gse.gse", "gse.summary", "gse.title", "gse.overall_design",
-                 "gse.pubmed_id","gse.title", "gse.supplementary_file", "gse.repeats", "gse.repeats_sample_list",
-                 "gse.variable", "gse.variable_description")
-#Full select Query for GSE
-GSEQuery <- paste(as.vector(GSESQLQuery), collapse=",")
-
-#Grabs all GSM ids given GSE
-grabgsm <- function(convgse){
-  gsm <- dbGetQuery(metadata,paste("select gse_gsm.gsm",
-                                   " from gse_gsm",
-                                   " where gse_gsm.gse =\"", convgse,"\"", "\n", sep=""))
-  finalgsm <- as.vector(gsm)
-  return(finalgsm$gsm)
-}
-
-#Grabs Title and Charactersitics for GSM
-grabtitle <- function (gsmid){
-  titlenchar <- unlist(dbGetQuery(metadata,paste("select gsm.characteristics_ch1, gsm.title",
-                                                 " from gsm",
-                                                 " where gsm.gsm =\"", gsmid,"\"", "\n", sep="")))
-  return(titlenchar)
-}
-
 #Function that grabs all corresponding GSE metadata
 graballinfo <- function(gseid) {
   gsemeta <- unlist(dbGetQuery(metadata,paste(GSEQuery,
@@ -66,33 +46,66 @@ parsetoscore <- function (features, metatable){
 
 #Scoring function for GSE Metadata
 scoring <- function(elementmeta, feature, metaindex){
-  metarow <- trainingset[metaindex,]
-  totalrow <- nrow(trainingset)
-  nacheck <- as.numeric(is.na(metarow$V5))
-  if(nacheck == 1){
-    category <- length(which(as.numeric(is.na(trainingset$V5)) == 1))
-  } else {
-    category <- length(which(trainingset$V5 == metarow$V5))
-  }
   if(length(which(grepl(feature, elementmeta[[2]], ignore.case = TRUE))) > 0){
     freq <- length(which(grepl(feature, elementmeta[[2]], ignore.case = TRUE)))
-    adjfreq <- (1+log2(as.numeric(freq)))*log2(as.numeric(totalrow)/as.numeric(category))
-    return(as.numeric(adjfreq))  ##Using Filename
+    #adjfreq <- (1+log2(as.numeric(freq)))*log2(as.numeric(totalrow)/as.numeric(category))
+    return(as.numeric(freq))  ##Using Filename
   } else if(length(which(grepl(feature, elementmeta[[1]], ignore.case = TRUE))) > 0){
     freq <- length(which(grepl(feature, elementmeta[[1]], ignore.case = TRUE)))
-    adjfreq <- (1+log2(as.numeric(freq)))*log2(as.numeric(totalrow)/as.numeric(category))
-    return(as.numeric(adjfreq))
+    #adjfreq <- (1+log2(as.numeric(freq)))*log2(as.numeric(totalrow)/as.numeric(category))
+    return(as.numeric(freq))
   }
   
   return(as.numeric(0))
   
 }
+parsetomat <- function (metatable){
+  tfmax <- max(metatable)
+  #print(tfmax)
+  metatable.score <- lapply(metatable, FUN=scoringnorm, tfmax = tfmax)
+  return(unlist(metatable.score))
+  #return(unlist(metatable.score))
+  #return(tfmax)
+}
+
+#Scoring function for GSE Metadata
+scoringnorm <- function(elementmeta, tfmax){
+  tfmax <- tfmax
+  if(as.numeric(elementmeta) > 0){
+    freq <- elementmeta
+    adjfreq <- 0.4+(1-0.4)*(freq/tfmax)
+    return(as.numeric(adjfreq))  ##Using Filename
+  }
+  return(as.numeric(0))
+  
+}
 
 scoring.list <- lapply(as.list(as.character(featset$V1)), parsetoscore, metatable = metadata.all )
-scoring.matrix <- do.call(cbind, scoring.list)
+adj.scoring.list <- lapply(scoring.list, parsetomat)
+scoring.matrix <- do.call(cbind, adj.scoring.list)
 rownames(scoring.matrix) <- gse
 
 colnames(scoring.matrix) <- as.vector(featset$V1)
+
 save(scoring.matrix , file="scoringmatrix.RData")
 
+presfreematrix <- scoring.matrix
+presfreematrix[presfreematrix > 0] <- 1.0
+save(presfreematrix, file="presfreematrix.RData")
+#save occurence matrix
 dbDisconnect(metadata)
+
+##TESTS
+if(max(scoring.matrix) > 0){
+  print("Scoring function is running\n")
+} 
+if(nrow(trainingset) != nrow(scoring.matrix)){
+  print("Scoring matrix is incorrect, wrong GSE")
+} else if (length(featset$V1) != ncol(scoring.matrix)){
+  print("Incorrect matrix, wrong features")
+} else {
+  print("Correct matrix")
+}
+
+
+

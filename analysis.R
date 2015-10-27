@@ -4,50 +4,37 @@ library(e1071)    #SVM
 ###
 #  For two class (binary) classification problem
 ###
+
 source("GEOgrab.R")
-source("metamapextract.R")
+#source("metamapextract.R")
 source("freetext.R")
 
-load("~/COMP4930/Results/GSM/trainingset.RData");
-load("~/COMP4930/Results/GSE/metamapscoring.RData");
-load("~/COMP4930/Results/GSM/scoringmatrix.RData");
+
+load("~/COMP4930/Results/GSE/trainingset.RData");
+load("~/COMP4930/Results/GSE/scoringmatrix.RData");
 
 #outmatrix <- cbind(metamapscoring, scoring.matrix, presmetamatrix, presfreematrix)
-outmatrix <- cbind(scoring.matrix, metamapscoring)
+#outmatrix <- cbind(scoring.matrix, metamapscoring)
 
 outmatrix <- scoring.matrix
 #outmatrix <- metamapscoring
 input <- trainingset 
 #Classification between perturbation and case/control
-class0.ind<-which(input[,2]==1)
-class1.ind<-which(input[,2]!=1)
+class0.ind<-which(input[,3]==1)
+class1.ind<-which(input[,3]!=1)
 
 class0<-outmatrix[class0.ind,]
 class1<-outmatrix[class1.ind,]
 
-label<-c(rep(0,length(class0.ind)),rep(1,length(class1.ind)) )
+label<-c(rep(1,length(class0.ind)),rep(0,length(class1.ind)) )
 dd<-rbind(class0,class1);
-control <- which(trainingset$V2 == 0)
-treatment <- which(trainingset$V2 == 1)
 modelpredic <- function (z, y){
   ### Feature selection
   flds <- y
   cvflds <- dd[-flds[[z]],]
   #Choose Features that have AUC >0.6
-  auc.single<-array(0,length(cvflds[1,]));
-  elements <- c(1:length(dd[1,]))
-  cvelements <- setdiff(elements, -flds[[z]])
-  for(i in cvelements){
-    feat<-dd[,i];
-    pred<-prediction(feat,label,label.ordering=c(0,1));
-    #perf<-performance(pred,"tpr","fpr");
-    auc.single[i]<-attr(performance(pred,"auc"),"y.value")[[1]];
-    if(auc.single[i]<0.5){
-      auc.single[i]<-1-auc.single[i]
-    }
-  }
-  ff.good<-which(auc.single>0.6)
-  #training set
+  controlCV <- match(rownames(cvflds), trainingset$V1)
+  controlCV <- trainingset[controlCV,]$V2
   dd.ff<-dd[-flds[[z]], ff.good]
   #test set
   dd.ts <- dd[flds[[z]], ff.good]

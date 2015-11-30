@@ -24,6 +24,8 @@ gselist <- as.list(gse)
 #gsmplatforms <- lapply(GSMList(gselist),function(x) {Meta(x)$platform})
 trainingset$row.names <- NULL
 #Function that grabs all corresponding GSE metadata
+#GSEQuery requires GEOgrab.R
+source("GEOgrab.R")
 graballinfo <- function(gseid) {
   gsemeta <- unlist(dbGetQuery(metadata,paste(GSEQuery,
                                               " from gse",

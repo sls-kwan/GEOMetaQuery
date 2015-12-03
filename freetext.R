@@ -6,6 +6,7 @@ library("parallel")
 library(gtools)
 library(textir)
 library(gdata)
+library(stringr)
 #####
 filenames = c("trainingoutp.csv",
               "feats.txt")
@@ -15,7 +16,7 @@ featfile <- paste(getwd(), filenames[2], sep="/") ##Input has GSE
 if(!file.exists('GEOmetadb.sqlite')) getSQLiteFile()
 metadata <- dbConnect(SQLite(),'GEOmetadb.sqlite')
 
-trainingset <- read.csv(egfiles, header=FALSE)
+trainingset <- read.table(egfiles, sep=",", quote="\"")
 save(trainingset, file="~/COMP4930/Results/GSE/trainingset.RData")
 featset <- read.table(featfile, sep= ",", quote="\"")
 output <- list()
@@ -24,19 +25,16 @@ gselist <- as.list(gse)
 #gsmplatforms <- lapply(GSMList(gselist),function(x) {Meta(x)$platform})
 trainingset$row.names <- NULL
 #Function that grabs all corresponding GSE metadata
-#GSEQuery requires GEOgrab.R
-source("GEOgrab.R")
 graballinfo <- function(gseid) {
   gsemeta <- unlist(dbGetQuery(metadata,paste(GSEQuery,
                                               " from gse",
-                                              " where gse.gse =\"", gseid,"\"", "\n", sep="")))
+                                              " where gse.type=\"Expression profiling by array\" and gse.gse =\"", gseid,"\"", "\n", sep="")))
   gsetogsm<- lapply(gseid, grabgsm)
   titlenchargsm <- unlist(lapply(as.list(unlist(gsetogsm)), grabtitle))
   allinfo <- list(gsemeta,titlenchargsm)
+  allinfo <- gsub("\\t", " ", allinfo)
   return(allinfo)
 }
-
-
 
 metadata.all <- lapply(as.list(gse), graballinfo)
 save(metadata.all, file="~/COMP4930/Results/GSE/metadatafreetxt.RData")
